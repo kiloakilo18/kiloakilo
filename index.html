@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>KILO A KILO - Pedido</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    body { font-family: Arial; margin: 20px; background:#f3f3f3; }
+    .card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+    h2 { margin-top: 0; }
+    button { background:#2E7D32; color:white; padding:10px 20px; border:none; border-radius:5px; font-size:16px; }
+    button:hover { background:#1b5e20; cursor:pointer; }
+    input[type="number"] { width: 70px; }
+    .total { font-size: 22px; font-weight: bold; }
+    #adminPanel { display: none; }
+    .admin-btn { background:#1565c0 !important; }
+    .delete-btn { background:#c62828 !important; margin-left:10px; }
+    .logo { text-align:center; margin-bottom:20px; }
+    .slogan { text-align:center; font-size:14px; color:#2E7D32; margin-top:-10px; }
+</style>
+</head>
+<body>
+
+<div class="logo">
+  <img src="logo.svg" alt="KILO A KILO" width="220">
+  <p class="slogan">Donde tu despensa rinde más</p>
+</div>
+
+<h1>KILO A KILO – Lista de Compras</h1>
+<p><i>Precios sujetos a cambios según proveedor (pueden subir o bajar).</i></p>
+
+<button class="admin-btn" onclick="entrarAdmin()">ADMIN</button>
+
+<!-- PANEL DE ADMINISTRACIÓN -->
+<div id="adminPanel" class="card">
+    <h2>Panel de administración</h2>
+
+    <h3>Agregar producto</h3>
+    <input id="nuevoNombre" placeholder="Nombre del producto" style="width:60%; padding:5px;">
+    <input id="nuevoPrecio" type="number" placeholder="Precio" style="width:30%; padding:5px;">
+    <button onclick="agregarProducto()">Agregar</button>
+
+    <h3>Productos actuales</h3>
+    <div id="listaAdmin"></div>
+</div>
+
+<!-- LISTA VISIBLE AL CLIENTE -->
+<div class="card">
+<h2>Productos</h2>
+<div id="productos"></div>
+</div>
+
+<div class="card">
+<h2>Datos del Cliente</h2>
+
+<input id="nombre" type="text" placeholder="Nombre" style="width:100%; padding:10px;"><br><br>
+<input id="direccion" type="text" placeholder="Dirección" style="width:100%; padding:10px;"><br><br>
+<input id="whatsCliente" type="text" placeholder="Número de WhatsApp del cliente" style="width:100%; padding:10px;"><br><br>
+
+<label>Método de pago:</label><br>
+<select id="pago" style="padding:10px; width:100%;">
+  <option value="Efectivo">Efectivo</option>
+  <option value="Transferencia">Transferencia</option>
+</select>
+</div>
+
+<div class="card">
+<p class="total">Total: $<span id="total">0</span></p>
+<button onclick="enviarWhatsApp()">Enviar pedido por WhatsApp</button>
+</div>
+
+<script>
+// ==============================
+//   SISTEMA DE PRODUCTOS
+// ==============================
+
+let listaProductos = JSON.parse(localStorage.getItem("productos")) || [
+  { nombre: "Huevo (kg)", precio: 39 },
+  { nombre: "Cartera de huevo", precio: 78 },
+  { nombre: "Azúcar (kg)", precio: 28 },
+  { nombre: "Arroz (kg)", precio: 29 },
+  { nombre: "Jamaica (kg)", precio: 29 }
+];
+
+function guardarProductos() {
+  localStorage.setItem("productos", JSON.stringify(listaProductos));
+  renderProductos();
+  renderAdmin();
+}
+
+function renderProductos() {
+  const cont = document.getElementById("productos");
+  cont.innerHTML = "";
+  listaProductos.forEach((p, i) => {
+    cont.innerHTML += `
+      <div class="producto">
+        <input type="checkbox" id="prod${i}" onchange="calcular()">
+        <label for="prod${i}">${p.nombre}</label>
+        <input type="number" id="cant${i}" value="1" min="1" onchange="calcular()">
+        <input type="number" id="price${i}" value="${p.precio}" onchange="updatePrecio(${i})"> $
+      </div>
+    `;
+  });
+}
+
+function calcular() {
+  let total = 0;
+  listaProductos.forEach((p, i) => {
+    if (document.getElementById(`prod${i}`).checked) {
+      const cant = Number(document.getElementById(`cant${i}`).value);
+      const precio = Number(document.getElementById(`price${i}`).value);
+      total += cant * precio;
+    }
+  });
+  document.getElementById("total").innerText = total;
+}
+
+function updatePrecio(i) {
+  listaProductos[i].precio = Number(document.getElementById(`price${i}`).value);
+  guardarProductos();
+  calcular();
+}
+
+function entrarAdmin() {
+  const clave = prompt("Ingresa la clave de administrador:");
+  if (clave === "kilo123") {
+    document.getElementById("adminPanel").style.display = "block";
+    renderAdmin();
+  } else {
+    alert("Clave incorrecta");
+  }
+}
+
+function renderAdmin() {
+  const div = document.getElementById("listaAdmin");
+  div.innerHTML = "";
+  listaProductos.forEach((p, i) => {
+    div.innerHTML += `
+      <div>
+        <input onchange="editarNombre(${i}, this.value)" value="${p.nombre}" style="width:50%">
+        <input type="number" onchange="editarPrecio(${i}, this.value)" value="${p.precio}">
+        <button class="delete-btn" onclick="eliminarProducto(${i})">Eliminar</button>
+      </div>
+      <br>
+    `;
+  });
+}
+
+function agregarProducto() {
+  const nombre = document.getElementById("nuevoNombre").value;
+  const precio = Number(document.getElementById("nuevoPrecio").value);
+  if (!nombre || !precio) return alert("Completa ambos campos");
+  listaProductos.push({ nombre, precio });
+  document.getElementById("nuevoNombre").value = "";
+  document.getElementById("nuevoPrecio").value = "";
+  guardarProductos();
+}
+
+function editarNombre(i, val) {
+  listaProductos[i].nombre = val;
+  guardarProductos();
+}
+
+function editarPrecio(i, val) {
+  listaProductos[i].precio = Number(val);
+  guardarProductos();
+}
+
+function eliminarProducto(i) {
+  listaProductos.splice(i, 1);
+  guardarProductos();
+}
+
+function enviarWhatsApp() {
+  const nombre = document.getElementById("nombre").value;
+  const direccion = document.getElementById("direccion").value;
+  const whatsappCliente = document.getElementById("whatsCliente").value;
+  const pago = document.getElementById("pago").value;
+  const total = document.getElementById("total").innerText;
+
+  if (!nombre || !direccion || !whatsappCliente) {
+    alert("Por favor completa nombre, dirección y WhatsApp.");
+    return;
+  }
+
+  let mensaje = "*PEDIDO KILO A KILO*\n\n";
+  mensaje += `*Cliente:* ${nombre}\n`;
+  mensaje += `*Dirección:* ${direccion}\n`;
+  mensaje += `*WhatsApp del cliente:* ${whatsappCliente}\n\n`;
+  mensaje += "*Productos:*\n";
+
+  listaProductos.forEach((p, i) => {
+    if (document.getElementById(`prod${i}`).checked) {
+      const cant = document.getElementById(`cant${i}`).value;
+      mensaje += `- ${p.nombre}: ${cant} x $${p.precio}\n`;
+    }
+  });
+
+  mensaje += `\n*Total:* $${total}\n`;
+  mensaje += `*Pago:* ${pago}\n`;
+
+  const telefono = "523324528522"; 
+  const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url, "_blank");
+}
+
+renderProductos();
+calcular();
+</script>
+
+</body>
+</html>
